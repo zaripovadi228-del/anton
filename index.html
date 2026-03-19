@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Калькулятор крашеных фасадов</title>
+  <style>
+    :root{
+      --bg:#f5f1ea; --card:#fffdf9; --text:#2b241f; --muted:#7a6d61; --line:#e4d8ca;
+      --wood:#8a5a3b; --wood-dark:#6d4328; --shadow:0 14px 34px rgba(73,45,23,.10); --radius:22px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--text);background:linear-gradient(180deg,#f8f4ee 0%, #f2ece4 100%)}
+    .wrap{width:min(96vw,1680px);margin:28px auto;padding:0 10px 36px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:20px}
+    .hero h1{margin:0 0 10px;font-size:34px;color:#2d2118}
+    .hero p{margin:0;color:#655a4f;line-height:1.55;font-size:15px}
+    .btns{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 16px}
+    button{border:0;border-radius:14px;padding:12px 16px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+    .btn-main{background:linear-gradient(135deg,var(--wood) 0%, var(--wood-dark) 100%);color:#fff}
+    .btn-light{background:#fff;color:#2b2118;border:1px solid #d9cec1}
+    .btn-ghost{background:#f5e9dc;color:#5a3c23;border:1px dashed #c9a98a}
+    .table-wrap{overflow:auto;max-height:70vh;border-radius:18px;border:1px solid #eadfd2;background:#fcfaf7}
+    table{width:100%;min-width:1220px;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;z-index:5;text-align:left;font-size:12px;color:#6e6257;padding:14px 10px;white-space:nowrap;font-weight:700;background:linear-gradient(180deg,#f7efe5 0%, #efe3d5 100%);border-bottom:1px solid #decebc}
+    tbody td{background:#fffdfb;border-bottom:1px solid #efe7dc;padding:12px 10px;vertical-align:top}
+    input, select, textarea{width:100%;border:1px solid #ddd2c6;background:#fff;border-radius:12px;padding:11px 12px;font-size:14px;color:#1f2937;outline:none}
+    textarea{min-height:100px;resize:vertical}
+    input::placeholder, textarea::placeholder{color:#a19385}
+    .rate-badge{display:inline-flex;align-items:center;justify-content:center;min-width:120px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#f6ede3 0%, #ecddcb 100%);border:1px solid #e2cfbb;font-size:13px;font-weight:800;color:#5d3d24;white-space:nowrap}
+    .money-cell{font-weight:700;white-space:nowrap;color:#2a2118}
+    .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    @media (max-width:1100px){.summary-grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:640px){.summary-grid{grid-template-columns:1fr}}
+    .sum-box{background:#fff;border:1px solid #e8ddd1;border-radius:20px;padding:18px}
+    .sum-box .name{font-size:13px;color:#6b5d50;margin-bottom:8px}
+    .sum-box .num{font-size:28px;font-weight:800;color:#2b2118}
+    .sum-box.total{background:linear-gradient(135deg,var(--wood) 0%, var(--wood-dark) 100%);color:#fff;border:0}
+    .sum-box.total .name,.sum-box.total .num{color:#fff}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:700px){.form-grid{grid-template-columns:1fr}}
+    .full{grid-column:1 / -1}
+    .status{margin-top:12px;font-size:14px;font-weight:600}
+    .ok{color:#166534}.err{color:#991b1b}
+    .meta{font-size:13px;color:#6b5d50;margin-top:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card hero">
+      <h1>Калькулятор крашеных фасадов</h1>
+      <p>После расчёта клиент может сразу отправить заказ в Telegram производства, а заказ автоматически сохранится в Google Sheets.</p>
+      <div class="meta" id="orderDatePreview">Дата заказа: будет присвоена при отправке</div>
+    </div>
+
+    <div class="card">
+      <div class="btns">
+        <button id="addRow" class="btn-ghost" type="button">+ Добавить фасад</button>
+        <button id="reset" class="btn-light" type="button">Сброс</button>
+        <button id="copy" class="btn-light" type="button">Скопировать расчёт</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ширина, мм</th>
+              <th>Высота, мм</th>
+              <th>Кол-во</th>
+              <th>Покраска</th>
+              <th>Тип</th>
+              <th>Ставка, ₽/м²</th>
+              <th>Фрезеровка</th>
+              <th>Площадь</th>
+              <th>Покраска</th>
+              <th>Фрезеровка</th>
+              <th>Итого по строке</th>
+              <th>Удалить</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Итого</h2>
+      <div class="summary-grid">
+        <div class="sum-box"><div class="name">Сумма покраски</div><div class="num" id="sumBase">0 ₽</div></div>
+        <div class="sum-box"><div class="name">Сумма фрезеровки</div><div class="num" id="sumMilling">0 ₽</div></div>
+        <div class="sum-box"><div class="name">Упаковка</div><div class="num" id="sumPacking">0 ₽</div></div>
+        <div class="sum-box total"><div class="name">К оплате</div><div class="num" id="sumTotal">0 ₽</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Отправить заказ</h2>
+      <div class="form-grid">
+        <div>
+          <label>Имя</label>
+          <input type="text" id="clientName" placeholder="Ваше имя">
+        </div>
+        <div>
+          <label>Телефон</label>
+          <input type="tel" id="clientPhone" placeholder="+7 (___) ___-__-__" maxlength="18">
+        </div>
+        <div class="full">
+          <label>Комментарий</label>
+          <textarea id="clientComment" placeholder="Комментарий к заказу"></textarea>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button id="sendOrder" class="btn-main" type="button">Отправить заказ в Telegram</button>
+      </div>
+      <div id="sendStatus" class="status"></div>
+    </div>
+  </div>
+
+  <script>
+    const PRICE_TABLE = {
+      matte: { one: 4500, two: 6500 },
+      gloss: { one: 5200, two: 7500 },
+      softtouch: { one: 6000, two: 8800 }
+    };
+
+    const TYPE_LABELS = {
+      matte: 'Мат',
+      gloss: 'Глянец',
+      softtouch: 'Soft-touch'
+    };
+
+    const SIDE_LABELS = {
+      one: '1 сторона',
+      two: '2 стороны'
+    };
+
+    const MILLING_TABLE = {
+      none:    { name: 'Без фрезеровки', price: 0 },
+      simple:  { name: 'Простая', price: 500 },
+      medium:  { name: 'Средняя', price: 900 },
+      complex: { name: 'Сложная', price: 1400 },
+      premium: { name: 'Премиум', price: 2000 }
+    };
+
+    const PACKING_PRICE_PER_M2 = 150;
+    const tbody = document.getElementById('tbody');
+
+    function fmtMoney(x){
+      const val = Number.isFinite(x) ? x : 0;
+      return `${val.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₽`;
+    }
+
+    function areaM2(wMm, hMm, qty){
+      const w = (Number(wMm) || 0) / 1000;
+      const h = (Number(hMm) || 0) / 1000;
+      const q = (Number(qty) || 0);
+      return w * h * q;
+    }
+
+    function getPaintRate(type, sides){
+      return PRICE_TABLE?.[type]?.[sides] || 0;
+    }
+
+    function makeMillingOptions(){
+      return Object.entries(MILLING_TABLE).map(([key, item]) => {
+        return `<option value="${key}">${item.name}</option>`;
+      }).join('');
+    }
+
+    function phoneMask(value){
+      const digits = value.replace(/\D/g, '');
+
+      let result = '+7';
+      let local = digits;
+
+      if (local.startsWith('7')) local = local.slice(1);
+      if (local.startsWith('8')) local = local.slice(1);
+
+      if (local.length > 0) result += ' (' + local.substring(0, 3);
+      if (local.length >= 4) result += ') ' + local.substring(3, 6);
+      if (local.length >= 7) result += '-' + local.substring(6, 8);
+      if (local.length >= 9) result += '-' + local.substring(8, 10);
+
+      return result;
+    }
+
+    function isValidPhone(value){
+      const digits = value.replace(/\D/g, '');
+      return digits.length === 11 || (digits.length === 10 && !digits.startsWith('7'));
+    }
+
+    function attachPhoneMask(){
+      const phone = document.getElementById('clientPhone');
+      phone.addEventListener('input', (e) => {
+        e.target.value = phoneMask(e.target.value);
+      });
+      phone.addEventListener('focus', (e) => {
+        if (!e.target.value) e.target.value = '+7';
+      });
+    }
+
+    function rowTemplate(){
+      const tr = document.createElement('tr');
+
+      tr.innerHTML = `
+        <td><input type="number" min="1" step="1" inputmode="numeric" placeholder="Ширина" data-k="w"></td>
+        <td><input type="number" min="1" step="1" inputmode="numeric" placeholder="Высота" data-k="h"></td>
+        <td><input type="number" min="1" step="1" inputmode="numeric" placeholder="Кол-во" data-k="qty"></td>
+        <td>
+          <select data-k="sides">
+            <option value="one" selected>1 сторона</option>
+            <option value="two">2 стороны</option>
+          </select>
+        </td>
+        <td>
+          <select data-k="type">
+            <option value="matte" selected>Мат</option>
+            <option value="gloss">Глянец</option>
+            <option value="softtouch">Soft-touch</option>
+          </select>
+        </td>
+        <td><div class="rate-badge" data-out="rate">4 500 ₽/м²</div></td>
+        <td><select data-k="milling">${makeMillingOptions()}</select></td>
+        <td class="money-cell" data-out="area">0.000 м²</td>
+        <td class="money-cell" data-out="paint">0 ₽</td>
+        <td class="money-cell" data-out="milling">0 ₽</td>
+        <td class="money-cell" data-out="lineTotal">0 ₽</td>
+        <td><button class="btn-light" type="button" data-act="del">Удалить</button></td>
+      `;
+
+      tr.addEventListener('input', calc);
+      tr.addEventListener('change', calc);
+
+      tr.querySelector('[data-act="del"]').addEventListener('click', () => {
+        tr.remove();
+        calc();
+      });
+
+      return tr;
+    }
+
+    function getRows(){
+      return Array.from(tbody.querySelectorAll('tr')).map(tr => ({
+        w: Number(tr.querySelector('[data-k="w"]').value) || 0,
+        h: Number(tr.querySelector('[data-k="h"]').value) || 0,
+        qty: Number(tr.querySelector('[data-k="qty"]').value) || 0,
+        sides: tr.querySelector('[data-k="sides"]').value,
+        type: tr.querySelector('[data-k="type"]').value,
+        milling: tr.querySelector('[data-k="milling"]').value
+      }));
+    }
+
+    function getCalculation(){
+      const rows = getRows();
+      const items = [];
+      let totalArea = 0;
+      let sumBase = 0;
+      let sumMilling = 0;
+
+      rows.forEach((r) => {
+        if (!r.w || !r.h || !r.qty) return;
+
+        const area = areaM2(r.w, r.h, r.qty);
+        const paintRate = getPaintRate(r.type, r.sides);
+        const sideFactor = r.sides === 'two' ? 2 : 1;
+        const paintSum = area * sideFactor * paintRate;
+        const millingPrice = MILLING_TABLE[r.milling]?.price || 0;
+        const millingSum = area * millingPrice;
+        const lineTotal = paintSum + millingSum;
+
+        totalArea += area;
+        sumBase += paintSum;
+        sumMilling += millingSum;
+
+        items.push({
+          ...r,
+          area,
+          paintRate,
+          typeLabel: TYPE_LABELS[r.type],
+          sidesLabel: SIDE_LABELS[r.sides],
+          millingName: MILLING_TABLE[r.milling]?.name || '',
+          millingPrice,
+          paintSum,
+          millingSum,
+          lineTotal
+        });
+      });
+
+      const sumPacking = totalArea * PACKING_PRICE_PER_M2;
+      const total = sumBase + sumMilling + sumPacking;
+
+      return { items, totalArea, sumBase, sumMilling, sumPacking, total };
+    }
+
+    function calc(){
+      const rowsRaw = getRows();
+
+      Array.from(tbody.querySelectorAll('tr')).forEach((tr, index) => {
+        const r = rowsRaw[index];
+        const area = areaM2(r.w, r.h, r.qty);
+        const paintRate = getPaintRate(r.type, r.sides);
+        const sideFactor = r.sides === 'two' ? 2 : 1;
+        const paintSum = area * sideFactor * paintRate;
+        const millingPrice = MILLING_TABLE[r.milling]?.price || 0;
+        const millingSum = area * millingPrice;
+        const lineTotal = paintSum + millingSum;
+
+        tr.querySelector('[data-out="rate"]').textContent = `${paintRate.toLocaleString('ru-RU')} ₽/м²`;
+        tr.querySelector('[data-out="area"]').textContent = `${area.toFixed(3)} м²`;
+        tr.querySelector('[data-out="paint"]').textContent = fmtMoney(paintSum);
+        tr.querySelector('[data-out="milling"]').textContent = fmtMoney(millingSum);
+        tr.querySelector('[data-out="lineTotal"]').textContent = fmtMoney(lineTotal);
+      });
+
+      const result = getCalculation();
+      document.getElementById('sumBase').textContent = fmtMoney(result.sumBase);
+      document.getElementById('sumMilling').textContent = fmtMoney(result.sumMilling);
+      document.getElementById('sumPacking').textContent = fmtMoney(result.sumPacking);
+      document.getElementById('sumTotal').textContent = fmtMoney(result.total);
+    }
+
+    document.getElementById('addRow').addEventListener('click', () => {
+      tbody.appendChild(rowTemplate());
+      calc();
+    });
+
+    document.getElementById('reset').addEventListener('click', () => {
+      tbody.innerHTML = '';
+      tbody.appendChild(rowTemplate());
+      calc();
+    });
+
+    document.getElementById('copy').addEventListener('click', async () => {
+      const result = getCalculation();
+      const text = result.items.map((item, i) =>
+        `${i+1}) ${item.w}x${item.h} мм, ${item.qty} шт, ${item.sidesLabel}, ${item.typeLabel}, ${item.millingName}, Итого: ${fmtMoney(item.lineTotal)}`
+      ).join('\n');
+
+      try{
+        await navigator.clipboard.writeText(text);
+        alert('Расчёт скопирован');
+      }catch(e){
+        prompt('Скопируйте расчёт вручную:', text);
+      }
+    });
+
+    document.getElementById('sendOrder').addEventListener('click', async () => {
+      const status = document.getElementById('sendStatus');
+      status.textContent = '';
+      status.className = 'status';
+
+      const clientName = document.getElementById('clientName').value.trim();
+      const clientPhone = document.getElementById('clientPhone').value.trim();
+      const clientComment = document.getElementById('clientComment').value.trim();
+      const result = getCalculation();
+
+      if (!clientName || !clientPhone) {
+        status.textContent = 'Пожалуйста, заполните имя и телефон.';
+        status.classList.add('err');
+        return;
+      }
+
+      if (!isValidPhone(clientPhone)) {
+        status.textContent = 'Введите корректный телефон.';
+        status.classList.add('err');
+        return;
+      }
+
+      if (!result.items.length) {
+        status.textContent = 'Добавьте хотя бы одну заполненную позицию.';
+        status.classList.add('err');
+        return;
+      }
+
+      try{
+        const response = await fetch('send-order-telegram.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientName,
+            clientPhone,
+            clientComment,
+            order: result
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          status.textContent = `Заказ отправлен. № заявки: ${data.orderNumber}. Дата: ${data.orderDate}`;
+          status.classList.add('ok');
+          document.getElementById('orderDatePreview').textContent = `Дата заказа: ${data.orderDate}`;
+
+          document.getElementById('clientName').value = '';
+          document.getElementById('clientPhone').value = '';
+          document.getElementById('clientComment').value = '';
+          tbody.innerHTML = '';
+          tbody.appendChild(rowTemplate());
+          calc();
+        } else {
+          status.textContent = data.message || 'Ошибка при отправке заказа.';
+          status.classList.add('err');
+        }
+      }catch(e){
+        status.textContent = 'Не удалось отправить заказ. Проверьте сервер.';
+        status.classList.add('err');
+      }
+    });
+
+    attachPhoneMask();
+    tbody.appendChild(rowTemplate());
+    calc();
+  </script>
+</body>
+</html>
